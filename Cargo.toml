@@ -6,3 +6,11 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+# tokio = {version="1.39.1", features=["rt-multi-thread", "macros"]}
+# x11 = "2.21.0"
+# xcb = "1.4.0"
+# xcb-util = {version="0.4.0", features = ["cursor", "ewmh", "icccm", "keysyms", "thread"]}
+tokio = { version = "1.18.2", features = ["rt-multi-thread", "macros"] }
+x11 = "2.19.1"
+xcb = { version = "0.10.1", features = ["xkb"] }
+xcb-util = { version = "0.4.0", features = ["cursor", "ewmh", "icccm", "keysyms", "thread"] }
