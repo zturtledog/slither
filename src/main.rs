@@ -19,6 +19,8 @@ fn main() -> xcb::Result<()> {
     // Connect to the X server.
     let (conn, screen_num) = xcb::Connection::connect(None)?;
 
+    println!("ja");
+
     // Fetch the `x::Setup` and get the main `x::Screen` object.
     let setup = conn.get_setup();
     let screen = setup.roots().nth(screen_num as usize).unwrap();
