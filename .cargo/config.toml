@@ -1,7 +1,0 @@
-[target.x86_64-unknown-linux-musl]
-linker = "rust-lld"
-
-# [target.x86_64-unknown-linux-gnu.lxcb]
-# rustc-link-lib = ["lxcb"]
-# rustc-link-search = ["/lib/lxcb"]
-# rustc-flags = "-L /some/path"
