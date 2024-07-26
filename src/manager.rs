@@ -9,7 +9,11 @@ use xcb::{
     Connection, Event,
 };
 
+use xcb::x::Screen;
+
 use crate::plugin;
+
+use plugin::EventPlugin;
 
 pub struct Manager {
     // clients: Arc<Mutex<Clients>>,
@@ -25,7 +29,7 @@ impl Manager {
     }
 
     pub fn start(self) {
-        let screen: xcb::Screen = get_screen(&self.conn);
+        let screen = get_screen(&self.conn);
 
         //todo desktop stuff
 
@@ -50,27 +54,15 @@ impl Manager {
 
         // event_loop
         loop {
-            let event = match conn.wait_for_event() {
-                Err(xcb::Error::Connection(err)) => {
-                    panic!("unexpected I/O error: {}", err);
-                }
-                Err(xcb::Error::Protocol(xcb::ProtocolError::X(
-                    x::Error::Font(err),
-                    _req_name,
-                ))) => {
-                    // may be this particular error is fine?
-                    continue;
-                }
-                Err(xcb::Error::Protocol(err)) => {
-                    panic!("unexpected protocol error: {:#?}", err);
-                }
-                Ok(eve) => eve,
-            };
-            tokio::spawn(Self::handle(conn, event));
+            if let Some(event) = self.conn.wait_for_event() {
+                let conn = self.conn.clone();
+
+                tokio::spawn(Self::handle(conn, event));
+            }
         }
     }
 
-    async fn handle(conn: Arc<xcb_util::ewmh::Connection>, event: xcb::Event) {
+    async fn handle(conn: Arc<xcb_util::ewmh::Connection>, event: xcb::GenericEvent) {
         match event {
             Event::X(eve) => match eve {
                 //map request
@@ -83,7 +75,9 @@ impl Manager {
                 //     plugin::destroy_notify(&conn, destroy_notify_event);
                 //     conn.flush();
                 // }
-                _ => {println!(eve)}
+                _ => {
+                    println!("{:#?}", eve)
+                }
             },
             _ => {}
         }
@@ -100,7 +94,7 @@ impl EventPlugin for Manager {
     }
 }
 
-pub fn get_screen(conn: &xcb_util::ewmh::Connection) -> xcb::Screen {
+pub fn get_screen(conn: &xcb_util::ewmh::Connection) -> StructPtr<xcb_screen_t> {
     conn.get_setup()
         .roots()
         .next()
@@ -111,9 +105,27 @@ pub fn connect(display_name: Option<&str>) -> Arc<xcb_util::ewmh::Connection> {
     Arc::new(
         xcb_util::ewmh::Connection::connect(
             xcb::Connection::connect(None)
-                .expect("Unable to access your display. Check your DISPLAY environment variable."),
+                .expect("Unable to access your display. Check your DISPLAY environment variable.")
+                .0,
         )
         .map_err(|(e, _)| e)
         .expect("Unable to create EWMH connection."),
     )
 }
+
+// let event = match conn.wait_for_event() {
+//     Err(xcb::Error::Connection(err)) => {
+//         panic!("unexpected I/O error: {}", err);
+//     }
+//     Err(xcb::Error::Protocol(xcb::ProtocolError::X(
+//         x::Error::Font(err),
+//         _req_name,
+//     ))) => {
+//         // may be this particular error is fine?
+//         continue;
+//     }
+//     Err(xcb::Error::Protocol(err)) => {
+//         panic!("unexpected protocol error: {:#?}", err);
+//     }
+//     Ok(eve) => eve,
+// };

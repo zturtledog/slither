@@ -1,13 +1,15 @@
-use manager::Manager;
+use nmanager::WinManager;
 
 mod manager;
 mod plugin;
+mod nmanager;
+mod wrapped;
 
 #[tokio::main]
 async fn main() {
     println!("Starting");
 
-    Manager::new().start()
+    WinManager::new().start()
 }
 
 // // we import the necessary modules (only the core X module in this application).
