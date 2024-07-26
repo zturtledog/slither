@@ -7,12 +7,6 @@ edition = "2021"
 
 [dependencies]
 tokio = {version="1.39.1", features=["rt-multi-thread", "macros"]}
-xcb = { version = "1.4.0", features = ["xkb"] }
+x11 = "2.19.1"
+xcb = { version = "0.10.1", features = ["xkb"] }
 xcb-util = { version = "0.4.0", features = ["cursor", "ewmh", "icccm", "keysyms", "thread"] }
-# x11 = "2.21.0"
-# xcb = "1.4.0"
-# xcb-util = {version="0.4.0", features = ["cursor", "ewmh", "icccm", "keysyms", "thread"]}
-# tokio = { version = "1.18.2", features = ["rt-multi-thread", "macros"] }
-# x11 = "2.19.1"
-# xcb = { version = "0.10.1", features = ["xkb"] }
-# xcb-util = { version = "0.4.0", features = ["cursor", "ewmh", "icccm", "keysyms", "thread"] }
