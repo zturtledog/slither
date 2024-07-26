@@ -1,6 +1,7 @@
 use manager::Manager;
 
 mod manager;
+mod plugin;
 
 #[tokio::main]
 async fn main() {
