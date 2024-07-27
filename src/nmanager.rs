@@ -5,13 +5,16 @@
 
 use std::sync::Arc;
 
-use xcb::Connection;
+// use xcb::Connection;
+
+use crate::plugin::Plugin;
 
 // use xcb_util::ffi::ewmh;
 
 // use crate::wrapped::Connect;
 
 pub struct WinManager {
+    plugins: Arc<Vec<Box<dyn Plugin>>>,
     conn: Arc<xcb_util::ewmh::Connection>,
     cursor: xcb::Cursor,
 }
@@ -21,7 +24,12 @@ impl WinManager {
         let conn = connect(None);
         let cursor = xcb_util::cursor::create_font_cursor(&conn, xcb_util::cursor::LEFT_PTR);
 
-        Self { cursor, conn }
+        Self { cursor, conn, plugins: Arc::new(vec![]) }
+    }
+
+    pub fn plugin(mut self, plugin : impl Plugin) -> Self {
+        self.plugins.push(Box::new(plugin));
+        self
     }
 
     pub fn start(self) {
@@ -93,24 +101,23 @@ impl WinManager {
         loop {
             if let Some(event) = self.conn.wait_for_event() {
                 let conn = self.conn.clone();
+                let plugins = self.plugins.clone();
 
-                // tokio::spawn(Self::handle(clients, config, conn, event));
+                tokio::spawn(Self::handle(conn, plugins, event));
             }
         }
     }
 
-    // #[tracing::instrument(skip_all, name = "event_handle")]
-    // async fn handle(
-    //     clients: Arc<Mutex<Clients>>,
-    //     config: Arc<Config>,
-    //     conn: Arc<xcb_util::ewmh::Connection>,
-    //     event: xcb::GenericEvent,
-    // ) {
-    //     let mut handler = Handler::default();
-    //
-    //     let response_type = event.response_type() & !0x80;
-    //
-    //     match response_type {
+    async fn handle(
+        conn: Arc<xcb_util::ewmh::Connection>,
+        plugins: Arc<Vec<Box<dyn Plugin>>>,
+        event: xcb::GenericEvent,
+    ) {
+        let mut handler = Handler::default();
+    
+        let response_type = event.response_type() & !0x80;
+    
+        match response_type {
     //         xcb::CLIENT_MESSAGE => handler.on_client_message(EventContext {
     //             clients,
     //             config,
@@ -175,12 +182,11 @@ impl WinManager {
     //                 std::mem::transmute::<xcb::GenericEvent, xcb::DestroyNotifyEvent>(event)
     //             },
     //         }),
-    //         // Events we do not care about
-    //         _ => (),
-    //     };
-    //
-    //     conn.flush();
-    // }
+            // Events we do not care about
+            _ => (),
+        }
+        conn.flush();
+    }
 }
 
 fn connect(displayname: Option<&str>) -> Arc<xcb_util::ewmh::Connection> {

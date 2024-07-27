@@ -1,13 +1,18 @@
 use nmanager::WinManager;
 
 // mod manager;
-// mod plugin;
+mod plugin;
+mod plugins;
 mod nmanager;
 // mod wrapped;
+
+use plugins::core_plugin::CorePlugin;
 
 #[tokio::main]
 async fn main() {
     println!("Starting");
 
-    WinManager::new().start()
+    WinManager::new()
+        .plugin(CorePlugin {})
+        .start()
 }
