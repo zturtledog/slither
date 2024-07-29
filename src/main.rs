@@ -1,9 +1,10 @@
-use nmanager::WinManager;
+use manager::WinManager;
 
 // mod manager;
 mod plugin;
 mod plugins;
-mod nmanager;
+mod manager;
+mod macros;
 // mod wrapped;
 
 use plugins::core_plugin::CorePlugin;
@@ -12,7 +13,7 @@ use plugins::core_plugin::CorePlugin;
 async fn main() {
     println!("Starting");
 
-    WinManager::new()
-        .plugin(CorePlugin {})
-        .start()
+    let mut wm = WinManager::new();
+    wm.plugin(CorePlugin {});
+    wm.start()
 }
