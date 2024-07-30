@@ -1,10 +1,9 @@
 use manager::WinManager;
 
 // mod manager;
-mod plugin;
 mod plugins;
 mod manager;
-mod macros;
+mod utils;
 // mod wrapped;
 
 use plugins::core_plugin::CorePlugin;

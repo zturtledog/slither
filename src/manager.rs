@@ -5,7 +5,7 @@ use std::sync::{Arc, RwLock};
 
 // use xcb::Connection;
 
-use crate::{macros, plugin::{Plugin, StructuredPlugin}};
+use crate::utils::{client::Clients, macros, plugin::{Plugin, StructuredPlugin}};
 
 // use xcb_util::ffi::ewmh;
 
@@ -14,6 +14,7 @@ use crate::{macros, plugin::{Plugin, StructuredPlugin}};
 pub struct WinManager {
     plugins: Arc<RwLock<Vec<StructuredPlugin>>>,
     conn: Arc<xcb_util::ewmh::Connection>,
+    clients: Arc<RwLock<Clients>>,
     cursor: xcb::Cursor,
 }
 
@@ -21,10 +22,12 @@ impl WinManager {
     pub fn new() -> Self {
         let conn = connect(None);
         let cursor = xcb_util::cursor::create_font_cursor(&conn, xcb_util::cursor::LEFT_PTR);
+        let clients = Arc::new(RwLock::new(Clients::new(conn.clone())));
 
         Self {
             cursor,
             conn,
+            clients,
             plugins: Arc::new(RwLock::new(vec![])),
         }
     }
@@ -85,10 +88,7 @@ impl WinManager {
                 xcb::CW_EVENT_MASK,
                 xcb::EVENT_MASK_SUBSTRUCTURE_REDIRECT | xcb::EVENT_MASK_SUBSTRUCTURE_NOTIFY,
             )],
-        )
-        .request_check()
-        .is_err()
-        {
+        ).request_check().is_err(){
             panic!("Unable to change window attributes. Is another window manager running?")
         }
 
@@ -96,38 +96,40 @@ impl WinManager {
         //     std::process::Command::new(program).spawn().unwrap();
         // }
 
-        {
-            let pluginx = self.plugins.write().unwrap(); 
-            for plugin in &*pluginx {
-                plugin.init()
-            }
-        }
-
+        
         if xcb::change_window_attributes_checked(
             &self.conn,
             screen.root(),
             &[(xcb::CW_CURSOR, self.cursor)],
-        )
-        .request_check()
-        .is_err()
-        {
+        ).request_check().is_err(){
             panic!("Unable to set cursor icon.")
+        }
+        
+        /* i do not like rust multithreading */ {
+            let pluginx = self.plugins.write().unwrap(); 
+            for plugin in &*pluginx {
+                plugin.init(self.conn.clone(),self.clients.clone())
+            }
         }
 
         self.conn.flush(); // just to be sure; shouldn't be nescesary but still
+        
+        std::process::Command::new("xterminal-emulator").spawn().unwrap();
 
         loop {
             if let Some(event) = self.conn.wait_for_event() {
                 let conn = self.conn.clone();
                 let plugins = self.plugins.clone();
+                let clients = self.clients.clone();
 
-                tokio::spawn(Self::handle(conn, plugins, event));
+                tokio::spawn(Self::handle(conn, clients, plugins, event));
             }
         }
     }
 
     pub async fn handle(
         conn: Arc<xcb_util::ewmh::Connection>,
+        clients: Arc<RwLock<Clients>>,
         plugins: Arc<RwLock<Vec<StructuredPlugin>>>,
         event: xcb::GenericEvent,
     ) {
@@ -135,19 +137,19 @@ impl WinManager {
         let pluginx = plugins.read().unwrap();
 
         match response_type {
-            xcb::CLIENT_MESSAGE => {macros::event!(on_client_message,conn,pluginx,xcb::ClientMessageEvent,event);},
-            xcb::KEY_PRESS => {macros::event!(on_key_press,conn,pluginx,xcb::KeyPressEvent,event);},
-            xcb::CONFIGURE_REQUEST => {macros::event!(on_configure_request,conn,pluginx,xcb::ConfigureRequestEvent,event);},
-            xcb::MAP_REQUEST => {macros::event!(on_map_request,conn,pluginx,xcb::MapRequestEvent,event);},
-            xcb::PROPERTY_NOTIFY => {macros::event!(on_property_notify,conn,pluginx,xcb::PropertyNotifyEvent,event);},
-            xcb::ENTER_NOTIFY => {macros::event!(on_enter_notify,conn,pluginx,xcb::EnterNotifyEvent,event);},
-            xcb::UNMAP_NOTIFY => {macros::event!(on_unmap_notify,conn,pluginx,xcb::UnmapNotifyEvent,event);},
-            xcb::DESTROY_NOTIFY => {macros::event!(on_destroy_notify,conn,pluginx,xcb::DestroyNotifyEvent,event);},
+            xcb::CLIENT_MESSAGE => {macros::event!(on_client_message,conn,clients,pluginx,xcb::ClientMessageEvent,event);},
+            xcb::KEY_PRESS => {macros::event!(on_key_press,conn,clients,pluginx,xcb::KeyPressEvent,event);},
+            xcb::CONFIGURE_REQUEST => {macros::event!(on_configure_request,conn,clients,pluginx,xcb::ConfigureRequestEvent,event);},
+            xcb::MAP_REQUEST => {macros::event!(on_map_request,conn,clients,pluginx,xcb::MapRequestEvent,event);},
+            xcb::PROPERTY_NOTIFY => {macros::event!(on_property_notify,conn,clients,pluginx,xcb::PropertyNotifyEvent,event);},
+            xcb::ENTER_NOTIFY => {macros::event!(on_enter_notify,conn,clients,pluginx,xcb::EnterNotifyEvent,event);},
+            xcb::UNMAP_NOTIFY => {macros::event!(on_unmap_notify,conn,clients,pluginx,xcb::UnmapNotifyEvent,event);},
+            xcb::DESTROY_NOTIFY => {macros::event!(on_destroy_notify,conn,clients,pluginx,xcb::DestroyNotifyEvent,event);},
             
             _ => {
                 pluginx
                     .iter()
-                    .for_each(|plugin| plugin.unspecified_event(conn.clone(), response_type, &event));
+                    .for_each(|plugin| plugin.unspecified_event(conn.clone(), clients.clone(), response_type, &event));
             },
         }
         conn.flush();
